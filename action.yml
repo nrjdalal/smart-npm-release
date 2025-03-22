@@ -5,14 +5,14 @@ branding:
   icon: "package"
   color: "red"
 inputs:
+  TAG:
+    description: "Release Tag"
+    required: false
   NPM_TOKEN:
     description: "NPM Token"
     required: true
   GITHUB_TOKEN:
     description: "GitHub Token"
-    required: false
-  TAG:
-    description: "Release Tag"
     required: false
 runs:
   using: "composite"
@@ -20,14 +20,13 @@ runs:
     - name: "Smart NPM Release"
       shell: bash
       run: |
+        echo "--- Detecting package manager ---"
         if ! command -v npm &> /dev/null; then
           echo "npm is not installed. Please install npm to proceed."
           exit 1
+        else
+          package_manager="npm"
         fi
-
-        package_manager="npm"
-
-        # --- Detect Package Manager ---
         if [ -f "bun.lockb" ] || [ -f "bun.lock" ]; then
           if ! command -v bun &> /dev/null; then
             echo "bun is detected but not installed.
@@ -41,8 +40,9 @@ runs:
             package_manager="pnpm"
           fi
         fi
+        echo "Detected package manager: $package_manager"
 
-        # --- Check if package exists in npm registry ---
+        echo "--- Checking if package exists in the npm registry ---"
         if [ "$package_manager" = "bun" ]; then
           package_name=$(bunx json -f package.json -a name)
           package_version=$(bunx json -f package.json -a version)
@@ -53,13 +53,12 @@ runs:
           package_name=$(npx json -f package.json -a name)
           package_version=$(npx json -f package.json -a version) 
         fi
-
         npm view "$package_name" 2>/dev/null || {
           echo "$package_name does not exist in the npm registry. Skipping publish."
           exit 0
         }
 
-        # --- Determine and release the next version ---
+        echo "--- Determining the release version ---"
         if [ -z "${{ inputs.TAG }}" ]; then
           release_version="$package_version"
         else
@@ -72,6 +71,7 @@ runs:
           fi
         fi
 
+        echo "--- Publishing the package ---"
         if [ "$package_manager" = "bun" ]; then
           bunx json -I -f package.json -e "this.version=\"$release_version\""
           if [ -z "${{ inputs.TAG }}" ]; then
@@ -95,7 +95,7 @@ runs:
           fi
         fi
 
-        # --- Set the status with the release link for the commit if GITHUB_TOKEN is provided ---
+        echo "--- Updating the commit status ---"
         if [ -n "${{ inputs.GITHUB_TOKEN }}" ]; then
           package_url="https://www.npmjs.com/package/$package_name/v/$release_version"
           curl -s -L \
