@@ -63,7 +63,7 @@ runs:
 
         IFS='.' read -r major minor patch <<<"$current_latest"
         if [ -z "${{ inputs.TAG }}" ]; then
-          release_version="$major.$minor.$((patch + 1))"
+          release_version="$major.$minor.$((patch + 2))"
         else
           current_tag_version=$(npm view "$package_name" dist-tags.${{ inputs.TAG }} 2>/dev/null)
           if [ -z "$current_tag_version" ]; then
