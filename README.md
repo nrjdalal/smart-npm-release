@@ -24,18 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: "16"
-
-      - name: Install dependencies
-        run: npm install
+          node-version: "22"
 
       - name: Smart NPM Release
-        uses: ./
+        uses: nrjdalal/smart-npm-release@v1
         with:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
