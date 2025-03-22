@@ -20,32 +20,46 @@ runs:
     - name: "Smart NPM Release"
       shell: bash
       run: |
+        if ! command -v npm &> /dev/null; then
+          echo "npm is not installed. Please install npm to proceed."
+          exit 1
+        fi
+
+        package_manager="npm"
+
         # --- Detect Package Manager ---
         if [ -f "bun.lockb" ] || [ -f "bun.lock" ]; then
-          package_manager="bun"
+          if ! command -v bun &> /dev/null; then
+            echo "bun is detected but not installed.
+          else
+            package_manager="bun"
+          fi
         elif [ -f "pnpm-lock.yaml" ]; then
-          package_manager="pnpm"
-        elif [ -f "package-lock.json" ]; then
-          package_manager="npm"
-        else
-          package_manager="npm"
+          if ! command -v pnpm &> /dev/null; then
+            echo "pnpm is detected but not installed.
+          else
+            package_manager="pnpm"
+          fi
         fi
 
         # --- Check if package exists in npm registry ---
         if [ "$package_manager" = "bun" ]; then
           package_name=$(bunx json -f package.json -a name)
+          package_version=$(bunx json -f package.json -a version)
           npm view "$package_name" 2>/dev/null || {
             echo "$package_name does not exist in the npm registry. Skipping publish."
             exit 0
           }
         elif [ "$package_manager" = "pnpm" ]; then
           package_name=$(pnpx json -f package.json -a name)
+          package_version=$(pnpx json -f package.json -a version)
           npm view "$package_name" 2>/dev/null || {
             echo "$package_name does not exist in the npm registry. Skipping publish."
             exit 0
           }
         else
           package_name=$(npx json -f package.json -a name)
+          package_version=$(npx json -f package.json -a version)
           npm view "$package_name" 2>/dev/null || {
             echo "$package_name does not exist in the npm registry. Skipping publish."
             exit 0
@@ -54,9 +68,7 @@ runs:
 
         # --- Determine and release the next version ---
         if [ -z "${{ inputs.TAG }}" ]; then
-          current_version=$(npm view "$package_name" dist-tags.latest 2>/dev/null)
-          IFS='.-' read -r major minor patch <<<"$current_version"
-          release_version="$major.$minor.$((patch + 1))"
+          release_version="$package_version"
         else
           current_tag_version=$(npm view "$package_name" dist-tags.${{ inputs.TAG }} 2>/dev/null)
           if [ -z "$current_tag_version" ]; then
