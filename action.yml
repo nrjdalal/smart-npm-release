@@ -5,14 +5,14 @@ branding:
   icon: "package"
   color: "red"
 inputs:
-  TAG:
-    description: "Release Tag"
-    required: false
   NPM_TOKEN:
     description: "NPM Token"
     required: true
   GITHUB_TOKEN:
     description: "GitHub Token"
+    required: false
+  TAG:
+    description: "Release Tag"
     required: false
 runs:
   using: "composite"

@@ -5,10 +5,10 @@ This GitHub Action automates the process of releasing a new version of your NPM 
 ## Inputs
 
 - `NPM_TOKEN` (required): The NPM token used for authentication.
-  Permissions required: `id-token: write`
+  - Permissions required: `id-token: write`
 - `GITHUB_TOKEN` (optional): The GitHub token used for setting the status with the release link.
-  Permissions required: `contents: write` and `statuses: write`
-- `TAG` (optional): The release tag. If not provided, the minor version will be bumped and released.
+  - Permissions required: `contents: write` and `statuses: write`
+- `TAG` (optional): The release tag. If not provided, the package.json version is used.
 
 ## Usage
 
