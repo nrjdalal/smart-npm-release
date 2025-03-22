@@ -74,6 +74,8 @@ runs:
           fi
         fi
 
+        echo "--- Releasing $package_name@$release_version ---"
+
         if [ "$package_manager" = "bun" ]; then
           bunx json -I -f package.json -e "this.version=\"$release_version\""
           if [ -z "${{ inputs.TAG }}" ]; then
