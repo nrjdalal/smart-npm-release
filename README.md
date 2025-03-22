@@ -36,7 +36,7 @@ jobs:
       - name: Smart NPM Release
         uses: nrjdalal/smart-npm-release@v1
         with:
+          TAG: "canary"
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: "canary"
 ```
