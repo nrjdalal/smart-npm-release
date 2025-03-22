@@ -34,7 +34,7 @@ runs:
           else
             package_manager="bun"
           fi
-        elif [ -f "pnpm-lock.yaml" ]; then
+        else [ -f "pnpm-lock.yaml" ]; then
           if ! command -v pnpm &> /dev/null; then
             echo "pnpm is detected but not installed.
           else
@@ -46,25 +46,18 @@ runs:
         if [ "$package_manager" = "bun" ]; then
           package_name=$(bunx json -f package.json -a name)
           package_version=$(bunx json -f package.json -a version)
-          npm view "$package_name" 2>/dev/null || {
-            echo "$package_name does not exist in the npm registry. Skipping publish."
-            exit 0
-          }
         elif [ "$package_manager" = "pnpm" ]; then
           package_name=$(pnpx json -f package.json -a name)
           package_version=$(pnpx json -f package.json -a version)
-          npm view "$package_name" 2>/dev/null || {
-            echo "$package_name does not exist in the npm registry. Skipping publish."
-            exit 0
-          }
         else
           package_name=$(npx json -f package.json -a name)
-          package_version=$(npx json -f package.json -a version)
-          npm view "$package_name" 2>/dev/null || {
-            echo "$package_name does not exist in the npm registry. Skipping publish."
-            exit 0
-          }
+          package_version=$(npx json -f package.json -a version) 
         fi
+
+        npm view "$package_name" 2>/dev/null || {
+          echo "$package_name does not exist in the npm registry. Skipping publish."
+          exit 0
+        }
 
         # --- Determine and release the next version ---
         if [ -z "${{ inputs.TAG }}" ]; then
