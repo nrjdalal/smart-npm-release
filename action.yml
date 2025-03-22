@@ -33,7 +33,7 @@ runs:
           else
             package_manager="bun"
           fi
-        else [ -f "pnpm-lock.yaml" ]; then
+        elif [ -f "pnpm-lock.yaml" ]; then
           if ! command -v pnpm &> /dev/null; then
             echo "pnpm is detected but not installed.
           else
