@@ -20,7 +20,7 @@ runs:
     - name: "Smart NPM Release"
       shell: bash
       run: |
-        echo "--- Detecting package manager ---"
+        echo -e "\033[0;33m--- Detecting the package manager ---\033[0m"
         if ! command -v npm &> /dev/null; then
           echo "npm is not installed. Please install npm to proceed."
           exit 1
@@ -29,20 +29,20 @@ runs:
         fi
         if [ -f "bun.lockb" ] || [ -f "bun.lock" ]; then
           if ! command -v bun &> /dev/null; then
-            echo "bun is detected but not installed.
+            echo "bun is detected but not installed."
           else
             package_manager="bun"
           fi
         elif [ -f "pnpm-lock.yaml" ]; then
           if ! command -v pnpm &> /dev/null; then
-            echo "pnpm is detected but not installed.
+            echo "pnpm is detected but not installed."
           else
             package_manager="pnpm"
           fi
         fi
         echo "Detected package manager: $package_manager"
 
-        echo "--- Checking if package exists in the npm registry ---"
+        echo -e "\033[0;33m--- Checking if package exists in the npm registry ---\033[0m"
         if [ "$package_manager" = "bun" ]; then
           package_name=$(bunx json -f package.json -a name)
           package_version=$(bunx json -f package.json -a version)
@@ -53,49 +53,52 @@ runs:
           package_name=$(npx json -f package.json -a name)
           package_version=$(npx json -f package.json -a version) 
         fi
-        npm view "$package_name" 2>/dev/null || {
+        npm view "$package_name" &>/dev/null || {
           echo "$package_name does not exist in the npm registry. Skipping publish."
           exit 0
         }
+        echo "Package $package_name found in the npm registry."
 
-        echo "--- Determining the release version ---"
-        if [ -z "${{ inputs.TAG }}" ]; then
+        echo -e "\033[0;33m--- Determining the release version ---\033[0m"
+        TAG=${{ inputs.TAG }}
+        if [ -z "$TAG" ]; then
           release_version="$package_version"
         else
-          current_tag_version=$(npm view "$package_name" dist-tags.${{ inputs.TAG }} 2>/dev/null)
+          current_tag_version=$(npm view "$package_name" dist-tags."$TAG" 2>/dev/null)
           if [ -z "$current_tag_version" ]; then
-            release_version="$major.$((minor + 1)).0-${{ inputs.TAG }}.0"
+            release_version="$major.$((minor + 1)).0-"$TAG".0"
           else
             IFS='.-' read -r tag_version_major tag_version_minor tag_version_patch tag_version_tag tag_version_version <<<"$current_tag_version"
-            release_version="$tag_version_major.$tag_version_minor.$tag_version_patch-${{ inputs.TAG }}.$((tag_version_version + 1))"
+            release_version="$tag_version_major.$tag_version_minor.$tag_version_patch-"$TAG".$((tag_version_version + 1))"
           fi
         fi
+        echo "Release version: $release_version"
 
-        echo "--- Publishing the package ---"
+        echo -e "\033[0;33m--- Publishing the package ---\033[0m"
         if [ "$package_manager" = "bun" ]; then
-          bunx json -I -f package.json -e "this.version=\"$release_version\""
-          if [ -z "${{ inputs.TAG }}" ]; then
-            bun publish --provenance --access public --no-git-checks
-          else
-            bun publish --provenance --access public --no-git-checks --tag ${{ inputs.TAG }}
-          fi
-        elif [ "$package_manager" = "pnpm" ]; then
-          pnpx json -I -f package.json -e "this.version=\"$release_version\""
-          if [ -z "${{ inputs.TAG }}" ]; then
-            pnpm publish --provenance --access public --no-git-checks
-          else
-            pnpm publish --provenance --access public --no-git-checks --tag ${{ inputs.TAG }}
-          fi
-        else
-          npx json -I -f package.json -e "this.version=\"$release_version\""
-          if [ -z "${{ inputs.TAG }}" ]; then
+          bunx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
+          if [ -z "$TAG" ]; then
             npm publish --provenance --access public --no-git-checks
           else
-            npm publish --provenance --access public --no-git-checks --tag ${{ inputs.TAG }}
+            npm publish --provenance --access public --no-git-checks --tag "$TAG"
+          fi
+        elif [ "$package_manager" = "pnpm" ]; then
+          pnpx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
+          if [ -z "$TAG" ]; then
+            pnpm publish --provenance --access public --no-git-checks
+          else
+            pnpm publish --provenance --access public --no-git-checks --tag "$TAG"
+          fi
+        else
+          npx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
+          if [ -z "$TAG" ]; then
+            npm publish --provenance --access public --no-git-checks
+          else
+            npm publish --provenance --access public --no-git-checks --tag "$TAG"
           fi
         fi
 
-        echo "--- Updating the commit status ---"
+        echo -e "\033[0;33m--- Updating the commit status ---\033[0m"
         if [ -n "${{ inputs.GITHUB_TOKEN }}" ]; then
           package_url="https://www.npmjs.com/package/$package_name/v/$release_version"
           curl -s -L \
@@ -103,13 +106,14 @@ runs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ inputs.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
-            -d "{\"body\": \"Package released - [\`$package_name@$release_version\`]($package_url)\"}"
+            -d "{\"body\": \"Package released - [\`$package_name@$release_version\`]($package_url)\"}" &>/dev/null
           curl -s -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ inputs.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
-            -d "{\"state\": \"success\", \"context\": \"Package released\", \"description\": \"$package_name@$release_version\", \"target_url\": \"$package_url\"}"
+            -d "{\"state\": \"success\", \"context\": \"Package released\", \"description\": \"$package_name@$release_version\", \"target_url\": \"$package_url\"}" &>/dev/null
+          echo "Commit status updated: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
         fi
       env:
         NPM_TOKEN: ${{ inputs.NPM_TOKEN }} # If npm detected
