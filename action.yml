@@ -53,17 +53,10 @@ runs:
         fi
 
         # --- Determine and release the next version ---
-        if [ "$package_manager" = "bun" ]; then
-          current_latest=$(bunx json -f package.json -a version)
-        elif [ "$package_manager" = "pnpm" ]; then
-          current_latest=$(pnpx json -f package.json -a version)
-        else
-          current_latest=$(npx json -f package.json -a version)
-        fi
-
-        IFS='.' read -r major minor patch <<<"$current_latest"
         if [ -z "${{ inputs.TAG }}" ]; then
-          release_version="$major.$minor.$((patch + 2))"
+          current_version=$(npm view "$package_name" dist-tags.latest 2>/dev/null)
+          IFS='.-' read -r major minor patch <<<"$current_version"
+          release_version="$major.$minor.$((patch + 1))"
         else
           current_tag_version=$(npm view "$package_name" dist-tags.${{ inputs.TAG }} 2>/dev/null)
           if [ -z "$current_tag_version" ]; then
@@ -73,8 +66,6 @@ runs:
             release_version="$tag_version_major.$tag_version_minor.$tag_version_patch-${{ inputs.TAG }}.$((tag_version_version + 1))"
           fi
         fi
-
-        echo "--- Releasing $package_name@$release_version ---"
 
         if [ "$package_manager" = "bun" ]; then
           bunx json -I -f package.json -e "this.version=\"$release_version\""
