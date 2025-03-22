@@ -1,0 +1,26 @@
+name: Update v1 tag
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-v1-tag:
+    if: startsWith(github.ref, 'refs/tags/v1.')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update v1 tag
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git fetch --tags
+          git tag -fa v1 -m "Update v1 tag to point to ${{ github.ref_name }}"
+          git push origin v1 -f

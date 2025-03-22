@@ -1,0 +1,107 @@
+name: "Smart NPM Release"
+description: "Smart NPM Release"
+author: "Neeraj Dalal"
+branding:
+  icon: "package"
+  color: "red"
+inputs:
+  NPM_TOKEN:
+    description: "NPM Token"
+    required: true
+  GITHUB_TOKEN:
+    description: "GitHub Token"
+    required: false
+  TAG:
+    description: "Release Tag"
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: "Smart NPM Release"
+      shell: bash
+      run: |
+        # --- Detect Package Manager ---
+        if [ -f "bun.lockb" ] || [ -f "bun.lock" ]; then
+          package_manager="bun"
+        elif [ -f "pnpm-lock.yaml" ]; then
+          package_manager="pnpm"
+        elif [ -f "package-lock.json" ]; then
+          package_manager="npm"
+        else
+          package_manager="npm"
+        fi
+
+        # --- Check if package exists in npm registry ---
+        if [ "$package_manager" = "bun" ]; then
+          package_name=$(bunx json -f package.json -a name)
+          bun view "$package_name" 2>/dev/null || {
+            echo "$package_name does not exist in the npm registry. Skipping publish."
+            exit 0
+          }
+        elif [ "$package_manager" = "pnpm" ]; then
+          package_name=$(pnpx json -f package.json -a name)
+          pnpm view "$package_name" 2>/dev/null || {
+            echo "$package_name does not exist in the npm registry. Skipping publish."
+            exit 0
+          }
+        else
+          package_name=$(npx json -f package.json -a name)
+          npm view "$package_name" 2>/dev/null || {
+            echo "$package_name does not exist in the npm registry. Skipping publish."
+            exit 0
+          }
+        fi
+
+        # --- Determine and release the next version ---
+        if [ "$package_manager" = "bun" ]; then
+          current_latest=$(bunx json -f package.json -a version)
+        elif [ "$package_manager" = "pnpm" ]; then
+          current_latest=$(pnpx json -f package.json -a version)
+        else
+          current_latest=$(npx json -f package.json -a version)
+        fi
+
+        IFS='.' read -r major minor patch <<<"$current_latest"
+        if [ -z "${{ inputs.TAG }}" ]; then
+          release_version="$major.$minor.$((patch + 1))"
+        else
+          current_canary=$(npm view "$package_name" dist-tags.${{ inputs.TAG }} 2>/dev/null)
+          if [ -z "$current_canary" ]; then
+            release_version="$major.$((minor + 1)).0-${{ inputs.TAG }}.0"
+          else
+            IFS='.-' read -r canary_major canary_minor canary_patch canary_tag canary_version <<<"$current_canary"
+            release_version="$canary_major.$canary_minor.$canary_patch-${{ inputs.TAG }}.$((canary_version + 1))"
+          fi
+        fi
+
+        if [ "$package_manager" = "bun" ]; then
+          bunx json -I -f package.json -e "this.version=\"$release_version\""
+          bun publish --provenance --access public --no-git-checks --tag ${{ inputs.TAG }}
+        elif [ "$package_manager" = "pnpm" ]; then
+          pnpx json -I -f package.json -e "this.version=\"$release_version\""
+          pnpm publish --provenance --access public --no-git-checks --tag ${{ inputs.TAG }}
+        else
+          npx json -I -f package.json -e "this.version=\"$release_version\""
+          npm publish --provenance --access public --no-git-checks --tag ${{ inputs.TAG }}
+        fi
+
+        # --- Set the status with the release link for the commit if GITHUB_TOKEN is provided ---
+        if [ -n "${{ inputs.GITHUB_TOKEN }}" ]; then
+          package_url="https://www.npmjs.com/package/$package_name/v/$release_version"
+          curl -s -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ inputs.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
+            -d "{\"body\": \"Package released - [\`$package_name@$release_version\`]($package_url)\"}"
+          curl -s -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ inputs.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -d "{\"state\": \"success\", \"context\": \"Package released\", \"description\": \"$package_name@$release_version\", \"target_url\": \"$package_url\"}"
+        fi
+      env:
+        NPM_TOKEN: ${{ inputs.NPM_TOKEN }} # If npm detected
+        NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }} # If pnpm detected
+        NPM_CONFIG_TOKEN: ${{ inputs.NPM_TOKEN }} # If bun detected
