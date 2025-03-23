@@ -22,18 +22,21 @@ runs:
       shell: bash
       run: |
         echo "PACKAGE_MANAGER=npm" >>$GITHUB_OUTPUT
+        echo "PACKAGE_RUNNER=npx" >>$GITHUB_OUTPUT
         if [ -z "$(which node)" ] || [ "$(which node)" = "/usr/local/bin/node" ]; then
           echo "INSTALL_NODE=true" >>$GITHUB_OUTPUT
         fi
         if [ -f "bun.lock" ] || [ -f "bun.lockb" ]; then
           if ! command -v bun &>/dev/null; then
             echo "PACKAGE_MANAGER=bun" >>$GITHUB_OUTPUT
+            echo "PACKAGE_RUNNER=bunx" >>$GITHUB_OUTPUT
             echo "INSTALL_BUN=true" >>$GITHUB_OUTPUT
           fi
         fi
         if [ -f "pnpm-lock.yaml" ]; then
           if ! command -v pnpm &>/dev/null; then
             echo "PACKAGE_MANAGER=pnpm" >>$GITHUB_OUTPUT
+            echo "PACKAGE_RUNNER=pnpx" >>$GITHUB_OUTPUT
             echo "INSTALL_PNPM=true" >>$GITHUB_OUTPUT
           fi
         fi
@@ -68,20 +71,12 @@ runs:
         NPM_CONFIG_TOKEN="${{ inputs.NPM_TOKEN }}"
         NPM_TOKEN="${{ inputs.NPM_TOKEN }}"
         TAG="${{ inputs.TAG }}"
-
         PACKAGE_MANAGER="${{ steps.CONFIG.outputs.PACKAGE_MANAGER }}"
+        PACKAGE_RUNNER="${{ steps.CONFIG.outputs.PACKAGE_RUNNER }}"
 
         echo -e "\033[0;33m--- Checking if package exists in the npm registry ---\033[0m"
-        if [ "$PACKAGE_MANAGER" = "bun" ]; then
-          package_name=$(bunx json -f package.json -a name)
-          package_version=$(bunx json -f package.json -a version)
-        elif [ "$PACKAGE_MANAGER" = "pnpm" ]; then
-          package_name=$(pnpx json -f package.json -a name)
-          package_version=$(pnpx json -f package.json -a version)
-        else
-          package_name=$(npx json -f package.json -a name)
-          package_version=$(npx json -f package.json -a version)
-        fi
+        package_name=$($PACKAGE_RUNNER json -f package.json -a name)
+        package_version=$($PACKAGE_RUNNER json -f package.json -a version)
         npm view "$package_name" &>/dev/null || {
           echo "$package_name does not exist in the npm registry. Skipping publish."
           exit 0
