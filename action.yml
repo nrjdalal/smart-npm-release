@@ -20,24 +20,32 @@ runs:
     - name: "Smart NPM Release"
       shell: bash
       run: |
+        # Smart NPM Release
+        TAG=${{ inputs.TAG }}
+
         echo -e "\033[0;33m--- Detecting the package manager ---\033[0m"
-        if ! command -v npm &> /dev/null; then
-          echo "npm is not installed. Please install npm to proceed."
-          exit 1
-        else
-          package_manager="npm"
+        package_manager="npm"
+        if [ -z "$(which node)" ] || [ "$(which node)" = "/usr/local/bin/node" ]; then
+          echo "Node.js not found. Installing Node.js..."
+          curl -s -o- https://raw.githubusercontent.com/nvm-sh/nvm/refs/heads/master/nvm.sh | bash &>/dev/null
+          source "$HOME/.nvm/nvm.sh"
+          nvm install --lts &>/dev/null
+          echo "Node.js installed: $(node -v)"
         fi
-        if [ -f "bun.lockb" ] || [ -f "bun.lock" ]; then
+        if [ -f "bun.lock" ] || [ -f "bun.lockb" ]; then
+          package_manager="bun"
           if ! command -v bun &> /dev/null; then
-            echo "bun is detected but not installed."
-          else
-            package_manager="bun"
+            echo "Bun detected but not found. Installing Bun..."
+            curl -fsSL https://bun.sh/install | bash &>/dev/null
+            export PATH="$HOME/.bun/bin:$PATH"
+            echo "Bun installed: $(bun -v)"
           fi
         elif [ -f "pnpm-lock.yaml" ]; then
+          package_manager="pnpm"
           if ! command -v pnpm &> /dev/null; then
-            echo "pnpm is detected but not installed."
-          else
-            package_manager="pnpm"
+            echo "PNPM detected but not found. Installing PNPM..."
+            corepack enable pnpm
+            echo "PNPM installed: $(pnpm -v)"
           fi
         fi
         echo "Detected package manager: $package_manager"
@@ -51,16 +59,15 @@ runs:
           package_version=$(pnpx json -f package.json -a version)
         else
           package_name=$(npx json -f package.json -a name)
-          package_version=$(npx json -f package.json -a version) 
+          package_version=$(npx json -f package.json -a version)
         fi
         npm view "$package_name" &>/dev/null || {
           echo "$package_name does not exist in the npm registry. Skipping publish."
           exit 0
         }
-        echo "Package $package_name found in the npm registry."
+        echo "Package: $package_name"
 
         echo -e "\033[0;33m--- Determining the release version ---\033[0m"
-        TAG=${{ inputs.TAG }}
         if [ -z "$TAG" ]; then
           release_version="$package_version"
         else
@@ -75,7 +82,12 @@ runs:
         echo "Release version: $release_version"
 
         echo -e "\033[0;33m--- Publishing the package ---\033[0m"
+        if [ ! -f "/home/runner/work/_temp/.npmrc" ]; then
+          echo "Registry URL: https://registry.npmjs.org"
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >~/.npmrc
+        fi
         if [ "$package_manager" = "bun" ]; then
+          [ ! -d "node_modules" ] && bun i
           bunx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
           if [ -z "$TAG" ]; then
             npm publish --provenance --access public --no-git-checks
@@ -83,6 +95,7 @@ runs:
             npm publish --provenance --access public --no-git-checks --tag "$TAG"
           fi
         elif [ "$package_manager" = "pnpm" ]; then
+          [ ! -d "node_modules" ] && pnpm i
           pnpx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
           if [ -z "$TAG" ]; then
             pnpm publish --provenance --access public --no-git-checks
@@ -90,6 +103,7 @@ runs:
             pnpm publish --provenance --access public --no-git-checks --tag "$TAG"
           fi
         else
+          [ ! -d "node_modules" ] && npm i
           npx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
           if [ -z "$TAG" ]; then
             npm publish --provenance --access public --no-git-checks
