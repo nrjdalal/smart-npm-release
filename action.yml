@@ -69,13 +69,13 @@ runs:
         NPM_TOKEN="${{ inputs.NPM_TOKEN }}"
         TAG="${{ inputs.TAG }}"
 
-        package_manager="${{ steps.CONFIG.outputs.PACKAGE_MANAGER }}"
+        PACKAGE_MANAGER="${{ steps.CONFIG.outputs.PACKAGE_MANAGER }}"
 
         echo -e "\033[0;33m--- Checking if package exists in the npm registry ---\033[0m"
-        if [ "$package_manager" = "bun" ]; then
+        if [ "$PACKAGE_MANAGER" = "bun" ]; then
           package_name=$(bunx json -f package.json -a name)
           package_version=$(bunx json -f package.json -a version)
-        elif [ "$package_manager" = "pnpm" ]; then
+        elif [ "$PACKAGE_MANAGER" = "pnpm" ]; then
           package_name=$(pnpx json -f package.json -a name)
           package_version=$(pnpx json -f package.json -a version)
         else
@@ -104,11 +104,7 @@ runs:
         echo "Release version: $release_version"
 
         echo -e "\033[0;33m--- Publishing the package ---\033[0m"
-        if [ ! -f "/home/runner/work/_temp/.npmrc" ]; then
-          echo "Registry URL: https://registry.npmjs.org"
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >~/.npmrc
-        fi
-        if [ "$package_manager" = "bun" ]; then
+        if [ "$PACKAGE_MANAGER" = "bun" ]; then
           [ ! -d "node_modules" ] && bun i
           bunx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
           if [ -z "$TAG" ]; then
@@ -116,7 +112,7 @@ runs:
           else
             npm publish --provenance --access public --no-git-checks --tag "$TAG"
           fi
-        elif [ "$package_manager" = "pnpm" ]; then
+        elif [ "$PACKAGE_MANAGER" = "pnpm" ]; then
           [ ! -d "node_modules" ] && pnpm i
           pnpx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
           if [ -z "$TAG" ]; then
