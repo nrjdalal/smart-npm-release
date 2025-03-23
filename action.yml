@@ -17,6 +17,20 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - id: REQUIRE_NODE
+      name: Check if Node.js installation is required
+      shell: bash
+      run: |
+        if [ -z "$(which node)" ] || [ "$(which node)" = "/usr/local/bin/node" ]; then
+          echo "INSTALL_NODE=true" >> $GITHUB_OUTPUT
+        fi
+    - if: ${{ steps.REQUIRE_NODE.outputs.INSTALL_NODE == 'true' }}
+      name: Node.js not found. Installing Node.js...
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+        registry-url: "https://registry.npmjs.org"
+
     - name: "Smart NPM Release"
       shell: bash
       run: |
