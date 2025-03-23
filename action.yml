@@ -21,8 +21,11 @@ runs:
       shell: bash
       run: |
         # Smart NPM Release
-        TAG=${{ inputs.TAG }}
-        NPM_TOKEN=${{ inputs.NPM_TOKEN }}
+        GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+        NODE_AUTH_TOKEN="${{ secrets.NPM_TOKEN }}"
+        NPM_CONFIG_TOKEN="${{ secrets.NPM_TOKEN }}"
+        NPM_TOKEN="${{ secrets.NPM_TOKEN }}"
+        TAG="${{ inputs.TAG }}"
 
         echo -e "\033[0;33m--- Detecting the package manager ---\033[0m"
         package_manager="npm"
@@ -132,6 +135,8 @@ runs:
           echo "Commit status updated: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
         fi
       env:
-        NPM_TOKEN: ${{ inputs.NPM_TOKEN }} # If npm detected
+        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }} # If pnpm detected
+        NPM_TOKEN: ${{ inputs.NPM_TOKEN }} # If npm detected
         NPM_CONFIG_TOKEN: ${{ inputs.NPM_TOKEN }} # If bun detected
+        TAG: ${{ inputs.TAG }}
