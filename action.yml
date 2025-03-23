@@ -38,21 +38,21 @@ runs:
           fi
         fi
 
-    - if: ${{ steps.CONFIG.outputs.INSTALL_NODE == "true" }}
+    - if: ${{ steps.CONFIG.outputs.INSTALL_NODE == 'true' }}
       name: NODE not found. Installing NODE...
       uses: actions/setup-node@v4
       with:
         node-version: lts/*
         registry-url: https://registry.npmjs.org
 
-    - if: ${{ steps.CONFIG.outputs.INSTALL_BUN == "true" }}
+    - if: ${{ steps.CONFIG.outputs.INSTALL_BUN == 'true' }}
       name: BUN detected but not found. Installing BUN...
       uses: oven-sh/setup-bun@v2
       with:
         bun-version: latest
         registry-url: https://registry.npmjs.org
 
-    - if: ${{ steps.CONFIG.outputs.INSTALL_PNPM == "true" }}
+    - if: ${{ steps.CONFIG.outputs.INSTALL_PNPM == 'true' }}
       name: PNPM detected but not found. Installing PNPM...
       uses: pnpm/action-setup@v4
       with:
