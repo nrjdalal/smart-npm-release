@@ -73,35 +73,35 @@ runs:
         TAG="${{ inputs.TAG }}"
         PACKAGE_MANAGER="${{ steps.CONFIG.outputs.PACKAGE_MANAGER }}"
         PACKAGE_RUNNER="${{ steps.CONFIG.outputs.PACKAGE_RUNNER }}"
+        PACKAGE_NAME="$($PACKAGE_RUNNER json -f package.json -a name)"
+        PACKAGE_VERSION="$($PACKAGE_RUNNER json -f package.json -a version)"
 
-        echo -e "\033[0;33m--- Checking if package exists in the npm registry ---\033[0m"
-        package_name=$($PACKAGE_RUNNER json -f package.json -a name)
-        package_version=$($PACKAGE_RUNNER json -f package.json -a version)
-        npm view "$package_name" &>/dev/null || {
-          echo "$package_name does not exist in the npm registry. Skipping publish."
+        echo -e "\033[0;33m--- Fetching the package information ---\033[0m"
+        npm view "$PACKAGE_NAME" &>/dev/null || {
+          echo "$PACKAGE_NAME does not exist in the npm registry. Skipping publish."
           exit 0
         }
-        echo "Package: $package_name"
+        echo "Package: $PACKAGE_NAME"
 
         echo -e "\033[0;33m--- Determining the release version ---\033[0m"
         if [ -z "$TAG" ]; then
-          release_version="$package_version"
+          RELEASE_VERSION="$PACKAGE_VERSION"
         else
-          current_tag_version=$(npm view "$package_name" dist-tags."$TAG" 2>/dev/null)
+          current_tag_version=$(npm view "$PACKAGE_NAME" dist-tags."$TAG" 2>/dev/null)
           if [ -z "$current_tag_version" ]; then
-            IFS='.' read -r major minor patch <<<"$package_version"
-            release_version="$major.$((minor + 1)).0-"$TAG".0"
+            IFS='.' read -r major minor patch <<<"$PACKAGE_VERSION"
+            RELEASE_VERSION="$major.$((minor + 1)).0-"$TAG".0"
           else
             IFS='.-' read -r tag_version_major tag_version_minor tag_version_patch tag_version_tag tag_version_version <<<"$current_tag_version"
-            release_version="$tag_version_major.$tag_version_minor.$tag_version_patch-"$TAG".$((tag_version_version + 1))"
+            RELEASE_VERSION="$tag_version_major.$tag_version_minor.$tag_version_patch-"$TAG".$((tag_version_version + 1))"
           fi
         fi
-        echo "Release version: $release_version"
+        echo "Release version: $RELEASE_VERSION"
 
         echo -e "\033[0;33m--- Publishing the package ---\033[0m"
         if [ "$PACKAGE_MANAGER" = "bun" ]; then
           [ ! -d "node_modules" ] && bun i
-          bunx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
+          bunx json -I -f package.json -e "this.version=\"$RELEASE_VERSION\"" &>/dev/null
           if [ -z "$TAG" ]; then
             npm publish --provenance --access public --no-git-checks
           else
@@ -109,7 +109,7 @@ runs:
           fi
         elif [ "$PACKAGE_MANAGER" = "pnpm" ]; then
           [ ! -d "node_modules" ] && pnpm i
-          pnpx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
+          pnpx json -I -f package.json -e "this.version=\"$RELEASE_VERSION\"" &>/dev/null
           if [ -z "$TAG" ]; then
             pnpm publish --provenance --access public --no-git-checks
           else
@@ -117,7 +117,7 @@ runs:
           fi
         else
           [ ! -d "node_modules" ] && npm i
-          npx json -I -f package.json -e "this.version=\"$release_version\"" &>/dev/null
+          npx json -I -f package.json -e "this.version=\"$RELEASE_VERSION\"" &>/dev/null
           if [ -z "$TAG" ]; then
             npm publish --provenance --access public --no-git-checks
           else
@@ -127,19 +127,19 @@ runs:
 
         echo -e "\033[0;33m--- Updating the commit status ---\033[0m"
         if [ -n "$GITHUB_TOKEN" ]; then
-          package_url="https://www.npmjs.com/package/$package_name/v/$release_version"
+          package_url="https://www.npmjs.com/package/$PACKAGE_NAME/v/$RELEASE_VERSION"
           curl -s -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
-            -d "{\"body\": \"Package released - [\`$package_name@$release_version\`]($package_url)\"}" &>/dev/null
+            -d "{\"body\": \"Package released - [\`$PACKAGE_NAME@$RELEASE_VERSION\`]($package_url)\"}" &>/dev/null
           curl -s -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
-            -d "{\"state\": \"success\", \"context\": \"Package released\", \"description\": \"$package_name@$release_version\", \"target_url\": \"$package_url\"}" &>/dev/null
+            -d "{\"state\": \"success\", \"context\": \"Package released\", \"description\": \"$PACKAGE_NAME@$RELEASE_VERSION\", \"target_url\": \"$package_url\"}" &>/dev/null
           echo "Commit status updated: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
         fi
       env:
@@ -147,4 +147,4 @@ runs:
         NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }} # If pnpm detected
         NPM_TOKEN: ${{ inputs.NPM_TOKEN }} # If npm detected
         NPM_CONFIG_TOKEN: ${{ inputs.NPM_TOKEN }} # If bun detected
-        TAG: ${{ inputs.TAG }}
+
