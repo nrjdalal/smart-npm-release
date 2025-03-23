@@ -8,11 +8,23 @@ inputs:
   NPM_TOKEN:
     description: "NPM Token"
     required: true
-  GITHUB_TOKEN:
-    description: "GitHub Token"
+  NODE_VERSION:
+    description: "Node Version"
+    required: false
+  BUN_VERSION:
+    description: "Bun Version"
+    required: false
+  PNPM_VERSION:
+    description: "PNPM Version"
+    required: false
+  REGISTRY_URL:
+    description: "Registry URL"
     required: false
   TAG:
     description: "Release Tag"
+    required: false
+  GITHUB_TOKEN:
+    description: "GitHub Token"
     required: false
 runs:
   using: "composite"
@@ -45,21 +57,21 @@ runs:
       name: NODE not found. Installing NODE...
       uses: actions/setup-node@v4
       with:
-        node-version: lts/*
+        node-version: ${{ inputs.NODE_VERSION || 'lts/*' }}
         registry-url: ${{ inputs.REGISTRY_URL || 'https://registry.npmjs.org' }}
 
     - if: ${{ steps.CONFIG.outputs.INSTALL_BUN == 'true' }}
       name: BUN detected but not found. Installing BUN...
       uses: oven-sh/setup-bun@v2
       with:
-        bun-version: latest
+        bun-version: ${{ inputs.BUN_VERSION || 'latest' }}
         registry-url: ${{ inputs.REGISTRY_URL || 'https://registry.npmjs.org' }}
 
     - if: ${{ steps.CONFIG.outputs.INSTALL_PNPM == 'true' }}
       name: PNPM detected but not found. Installing PNPM...
       uses: pnpm/action-setup@v4
       with:
-        version: latest
+        version: ${{ inputs.PNPM_VERSION || 'latest' }}
         registry-url: ${{ inputs.REGISTRY_URL || 'https://registry.npmjs.org' }}
 
     - name: "Smart NPM Release"
