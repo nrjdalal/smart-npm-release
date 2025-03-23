@@ -17,19 +17,47 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - id: REQUIRE_NODE
-      name: Check if Node.js installation is required
+    - id: CONFIG
+      name: "Configuration"
       shell: bash
       run: |
+        echo "PACKAGE_MANAGER=npm" >>$GITHUB_OUTPUT
         if [ -z "$(which node)" ] || [ "$(which node)" = "/usr/local/bin/node" ]; then
-          echo "INSTALL_NODE=true" >> $GITHUB_OUTPUT
+          echo "INSTALL_NODE=true" >>$GITHUB_OUTPUT
         fi
-    - if: ${{ steps.REQUIRE_NODE.outputs.INSTALL_NODE == 'true' }}
-      name: Node.js not found. Installing Node.js...
+        if [ -f "bun.lock" ] || [ -f "bun.lockb" ]; then
+          if ! command -v bun &>/dev/null; then
+            echo "PACKAGE_MANAGER=bun" >>$GITHUB_OUTPUT
+            echo "INSTALL_BUN=true" >>$GITHUB_OUTPUT
+          fi
+        fi
+        if [ -f "pnpm-lock.yaml" ]; then
+          if ! command -v pnpm &>/dev/null; then
+            echo "PACKAGE_MANAGER=pnpm" >>$GITHUB_OUTPUT
+            echo "INSTALL_PNPM=true" >>$GITHUB_OUTPUT
+          fi
+        fi
+
+    - if: ${{ steps.CONFIG.outputs.INSTALL_NODE == "true" }}
+      name: NODE not found. Installing NODE...
       uses: actions/setup-node@v4
       with:
-        node-version: "22"
-        registry-url: "https://registry.npmjs.org"
+        node-version: lts/*
+        registry-url: https://registry.npmjs.org
+
+    - if: ${{ steps.CONFIG.outputs.INSTALL_BUN == "true" }}
+      name: BUN detected but not found. Installing BUN...
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+        registry-url: https://registry.npmjs.org
+
+    - if: ${{ steps.CONFIG.outputs.INSTALL_PNPM == "true" }}
+      name: PNPM detected but not found. Installing PNPM...
+      uses: pnpm/action-setup@v4
+      with:
+        version: latest
+        registry-url: https://registry.npmjs.org
 
     - name: "Smart NPM Release"
       shell: bash
@@ -41,32 +69,7 @@ runs:
         NPM_TOKEN="${{ inputs.NPM_TOKEN }}"
         TAG="${{ inputs.TAG }}"
 
-        echo -e "\033[0;33m--- Detecting the package manager ---\033[0m"
-        package_manager="npm"
-        if [ -z "$(which node)" ] || [ "$(which node)" = "/usr/local/bin/node" ]; then
-          echo "Node.js not found. Installing Node.js..."
-          curl -s -o- https://raw.githubusercontent.com/nvm-sh/nvm/refs/heads/master/nvm.sh | bash &>/dev/null
-          source "$HOME/.nvm/nvm.sh"
-          nvm install --lts &>/dev/null
-          echo "Node.js installed: $(node -v)"
-        fi
-        if [ -f "bun.lock" ] || [ -f "bun.lockb" ]; then
-          package_manager="bun"
-          if ! command -v bun &>/dev/null; then
-            echo "Bun detected but not found. Installing Bun..."
-            curl -fsSL https://bun.sh/install | bash &>/dev/null
-            export PATH="$HOME/.bun/bin:$PATH"
-            echo "Bun installed: $(bun -v)"
-          fi
-        elif [ -f "pnpm-lock.yaml" ]; then
-          package_manager="pnpm"
-          if ! command -v pnpm &>/dev/null; then
-            echo "PNPM detected but not found. Installing PNPM..."
-            corepack enable pnpm
-            echo "PNPM installed: $(pnpm -v)"
-          fi
-        fi
-        echo "Detected package manager: $package_manager"
+        package_manager="${{ steps.CONFIG.outputs.PACKAGE_MANAGER }}"
 
         echo -e "\033[0;33m--- Checking if package exists in the npm registry ---\033[0m"
         if [ "$package_manager" = "bun" ]; then
