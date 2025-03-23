@@ -74,6 +74,7 @@ runs:
         else
           current_tag_version=$(npm view "$package_name" dist-tags."$TAG" 2>/dev/null)
           if [ -z "$current_tag_version" ]; then
+            IFS='.' read -r major minor patch <<<"$package_version"
             release_version="$major.$((minor + 1)).0-"$TAG".0"
           else
             IFS='.-' read -r tag_version_major tag_version_minor tag_version_patch tag_version_tag tag_version_version <<<"$current_tag_version"
