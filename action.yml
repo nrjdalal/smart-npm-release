@@ -155,8 +155,7 @@ runs:
           echo "Commit status updated: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
         fi
       env:
-        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-        NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }} # If pnpm detected
         NPM_TOKEN: ${{ inputs.NPM_TOKEN }} # If npm detected
         NPM_CONFIG_TOKEN: ${{ inputs.NPM_TOKEN }} # If bun detected
-
+        NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }} # If pnpm detected
+        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
