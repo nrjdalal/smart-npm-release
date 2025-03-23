@@ -22,7 +22,7 @@ runs:
       run: |
         # Smart NPM Release
         TAG=${{ inputs.TAG }}
-        NPM_TOKEN=${{ secrets.NPM_TOKEN }}
+        NPM_TOKEN=${{ inputs.NPM_TOKEN }}
 
         echo -e "\033[0;33m--- Detecting the package manager ---\033[0m"
         package_manager="npm"
