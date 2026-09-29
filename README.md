@@ -4,7 +4,7 @@ This GitHub Action automates the process of releasing a new version of your NPM 
 
 ## Inputs
 
-- `NPM_TOKEN` (required): The NPM token used for authentication.
+- `NPM_TOKEN` (optional): The NPM token used for authentication. Omit it to publish via [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (OIDC): add this repository and workflow as the package's trusted publisher on npmjs.com, and run on npm >= 11.5.1 (Node 24, which the action installs when the runner's own Node is in use).
   - Permissions required: `id-token: write`
 - `GITHUB_TOKEN` (optional): The GitHub token used for setting the status with the release link.
   - Permissions required: `contents: write` and `statuses: write`
@@ -19,6 +19,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  id-token: write
+  statuses: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -31,6 +36,7 @@ jobs:
         uses: nrjdalal/smart-npm-release@v1
         with:
           TAG: "canary"
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+With a trusted publisher configured on npm the workflow needs no `NPM_TOKEN` secret; to publish with a token instead, add `NPM_TOKEN: ${{ secrets.NPM_TOKEN }}` under `with`.
