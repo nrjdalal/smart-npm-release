@@ -6,8 +6,8 @@ branding:
   color: "red"
 inputs:
   NPM_TOKEN:
-    description: "NPM Token"
-    required: true
+    description: "NPM Token. Omit it to publish via npm Trusted Publishing (OIDC), which needs npm >= 11.5.1 (Node 24)"
+    required: false
   NODE_VERSION:
     description: "Node Version"
     required: false
